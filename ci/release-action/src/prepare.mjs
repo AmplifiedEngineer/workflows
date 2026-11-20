@@ -6,7 +6,7 @@
  * `{ outputs, log }` and never writes to stdout.
  */
 
-import { agreedVersion, replaceVersion } from "./manifests.mjs";
+import { agreedVersion, replaceVersion, versionFromText } from "./manifests.mjs";
 import {
   bumpFor,
   compareVersions,
@@ -22,7 +22,6 @@ export const FILE_MODE = "100644";
 const BLOB_TYPE = "blob";
 const INFO = "info";
 const AUTO = "auto";
-const VERSION_KEY = "version";
 const NO_PULL_REQUEST = "";
 const FILE_SEPARATOR = ", ";
 
@@ -56,7 +55,7 @@ export async function prepare({ client, files, bump, dryRun, defaultBranch, owne
 
   const head = await client.getBranchSha(defaultBranch);
   const texts = await Promise.all(files.map((file) => client.getFileText(file, head)));
-  const current = agreedVersion(files.map((file, index) => ({ file, version: readVersion(texts[index]) })));
+  const current = agreedVersion(files.map((file, index) => ({ file, version: versionFromText(texts[index]) })));
   if (compareVersions(current, latest) > 0) {
     throw new Error(
       `${files.join(FILE_SEPARATOR)} hold ${current}, which has no tag yet: let the release job finish first`,
@@ -108,17 +107,4 @@ async function chooseBump({ client, bump, latestTag, head }) {
   const highest = highestBump(titles.map((title) => bumpFor(title, current)));
   if (highest === null) throw new Error(`nothing to release since ${latestTag}`);
   return highest;
-}
-
-/**
- * @param {string} text
- * @returns {string | null} The top-level `version` when it is a string, otherwise null.
- */
-function readVersion(text) {
-  try {
-    const value = JSON.parse(text)?.[VERSION_KEY];
-    return typeof value === "string" ? value : null;
-  } catch {
-    return null;
-  }
 }

@@ -95,7 +95,20 @@ function requireWorkspacePath(file) {
  */
 function readVersion(filePath) {
   try {
-    return readTopLevelVersion(fs.readFileSync(filePath, ENCODING));
+    return versionFromText(fs.readFileSync(filePath, ENCODING));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @param {string} text
+ * @returns {string | null} The top-level `version` when it is a string, otherwise null, also for
+ * text that is not JSON.
+ */
+export function versionFromText(text) {
+  try {
+    return readTopLevelVersion(text);
   } catch {
     return null;
   }

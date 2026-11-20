@@ -11,11 +11,13 @@ import { fileURLToPath } from "node:url";
 
 import { createClient } from "./src/github.mjs";
 import { parseFiles } from "./src/manifests.mjs";
+import { prepare } from "./src/prepare.mjs";
 import { release } from "./src/release.mjs";
 import { verify } from "./src/verify.mjs";
 
 const MODE_VERIFY = "verify";
 const MODE_RELEASE = "release";
+const MODE_PREPARE = "prepare";
 const BUMPS = ["auto", "patch", "minor", "major"];
 const DEFAULT_BUMP = "auto";
 const TRUE = "true";
@@ -23,6 +25,7 @@ const FALSE = "false";
 const DEFAULT_API_URL = "https://api.github.com";
 const DEFAULT_WORKSPACE = ".";
 const NOTICE = "notice";
+const REPOSITORY_SEPARATOR = "/";
 const EXIT_OK = 0;
 const EXIT_FAILURE = 1;
 const EVENT_ENCODING = "utf8";
@@ -84,7 +87,7 @@ export async function run({ env, fetch, stdout }) {
  */
 function readInputs(env) {
   const mode = env.INPUT_MODE ?? "";
-  if (mode !== MODE_VERIFY && mode !== MODE_RELEASE) throw new Error(`unknown mode: ${mode}`);
+  if (![MODE_VERIFY, MODE_RELEASE, MODE_PREPARE].includes(mode)) throw new Error(`unknown mode: ${mode}`);
   const bump = env.INPUT_BUMP || DEFAULT_BUMP;
   if (!BUMPS.includes(bump)) throw new Error(`unknown bump: ${bump}`);
   const dryRun = env["INPUT_DRY-RUN"] || FALSE;
@@ -140,6 +143,12 @@ function runMode({ inputs, event, client, files }) {
   const { workspace, sha, mode } = inputs;
   if (mode === MODE_VERIFY) {
     return verify({ client, workspace, files, title: event?.pull_request?.title });
+  }
+  if (mode === MODE_PREPARE) {
+    const defaultBranch = event?.repository?.default_branch;
+    if (!defaultBranch) throw new Error("event payload has no repository.default_branch");
+    const owner = inputs.repository.split(REPOSITORY_SEPARATOR)[0];
+    return prepare({ client, files, bump: inputs.bump, dryRun: inputs.dryRun, defaultBranch, owner });
   }
   return release({ client, workspace, files, sha });
 }

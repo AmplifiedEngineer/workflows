@@ -7,15 +7,21 @@
  */
 
 import { agreedVersion, readVersions } from "./manifests.mjs";
-import { bumpFor, highestBump, nextVersion, pickLatestTag, tagFor, versionOf } from "./version.mjs";
+import {
+  BASE_VERSION,
+  TAG_REF_PREFIX,
+  bumpFor,
+  highestBump,
+  nextVersion,
+  pickLatestTag,
+  tagFor,
+  versionOf,
+} from "./version.mjs";
 
 const NOTICE = "notice";
 const STATUS_AHEAD = "ahead";
 const STATUS_IDENTICAL = "identical";
-const STATUS_BEHIND = "behind";
 const STATUS_DIVERGED = "diverged";
-const BASE_VERSION = "0.0.0";
-const TAG_REF_PREFIX = "refs/tags/";
 const TRUE = "true";
 const FALSE = "false";
 
@@ -58,9 +64,10 @@ export async function release({ client, workspace, files, sha }) {
   const latestTag = pickLatestTag(refs.map(({ ref }) => ref));
   const latestRef = latestTag ? refs.find(({ ref }) => ref === `${TAG_REF_PREFIX}${latestTag}`) : null;
   const latestCommit = latestRef ? await client.resolveTagCommit(latestRef) : null;
-  const comparison = latestTag ? await client.compareCommits(latestTag, sha) : null;
+  // Only the status matters here, so a long history cannot hit the compare page limit.
+  const status = !latestTag ? null : latestCommit === sha ? STATUS_IDENTICAL : await client.compareStatus(latestTag, sha);
 
-  const repairable = comparison?.status === STATUS_AHEAD || comparison?.status === STATUS_IDENTICAL;
+  const repairable = status === STATUS_AHEAD || status === STATUS_IDENTICAL;
   const repaired =
     repairable && latestTag && latestCommit ? await ensureRelease(latestTag, latestCommit) : false;
 
@@ -102,12 +109,13 @@ export async function release({ client, workspace, files, sha }) {
     return finish(tag, created || (repaired && tag === latestTag));
   }
 
-  if (latestTag && comparison) {
+  if (latestTag) {
     if (latestCommit === sha) return finish(latestTag, repaired);
-    if (comparison.status === STATUS_DIVERGED) {
+    if (status === STATUS_DIVERGED) {
       throw new Error(`${latestTag} is not an ancestor of ${sha}; fix the tag before releasing`);
     }
-    if (comparison.status === STATUS_BEHIND || comparison.status === STATUS_IDENTICAL || comparison.titles.length === 0) {
+    const comparison = status === STATUS_AHEAD ? await client.compareCommits(latestTag, sha) : null;
+    if (!comparison || comparison.titles.length === 0) {
       const notAhead = { level: NOTICE, text: `${sha} is not ahead of ${latestTag}; nothing to release` };
       return finish(latestTag, repaired, [notAhead]);
     }

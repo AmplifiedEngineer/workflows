@@ -11,6 +11,8 @@ import { parseVersion } from "./version.mjs";
 const LINE_BREAK_REGEX = /\r?\n/;
 const BACKSLASH = "\\";
 const PARENT_SEGMENT = "..";
+const CURRENT_SEGMENT = ".";
+const EMPTY_SEGMENT = "";
 const PATH_SEPARATOR = "/";
 const ENCODING = "utf8";
 const VERSION_KEY = "version";
@@ -83,7 +85,9 @@ function requireWorkspacePath(file) {
   if (
     path.isAbsolute(file) ||
     file.includes(BACKSLASH) ||
-    segments.includes(PARENT_SEGMENT)
+    segments.includes(PARENT_SEGMENT) ||
+    segments.includes(CURRENT_SEGMENT) ||
+    segments.includes(EMPTY_SEGMENT)
   ) {
     throw new Error(`${JSON.stringify(file)} must be a relative path inside the workspace`);
   }
@@ -123,8 +127,11 @@ function readTopLevelVersion(text) {
   return typeof value === "string" ? value : null;
 }
 
-/** @param {string | null} version */
-function describe(version) {
+/**
+ * A version for a log line: only a strict version is shown, so a value cannot carry log commands.
+ * @param {string | null} version
+ */
+export function describe(version) {
   if (version === null) return NO_VERSION;
   return parseVersion(version) ? version : INVALID_VERSION;
 }

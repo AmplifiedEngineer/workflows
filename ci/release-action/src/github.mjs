@@ -6,12 +6,13 @@
  * answer throws.
  */
 
-export const API_VERSION = '2022-11-28';
-export const PER_PAGE = 100;
-export const MAX_TAG_PAGES = 10;
-export const MAX_COMPARE_PAGES = 10;
+const API_VERSION = '2022-11-28';
+const PER_PAGE = 100;
+const MAX_TAG_PAGES = 10;
+const MAX_COMPARE_PAGES = 10;
 
 const NOT_FOUND = 404;
+const UNPROCESSABLE = 422;
 const ANNOTATED_TAG = 'tag';
 
 /**
@@ -26,11 +27,11 @@ const ANNOTATED_TAG = 'tag';
  */
 export function createClient({ fetch, apiUrl, token, repo }) {
   const baseUrl = apiUrl.replace(/\/+$/, '');
-  const repoPath = `/repos/${repo.split('/').map(encodeURIComponent).join('/')}`;
 
   /** Encodes each segment but keeps the slashes of a branch name or file path. */
   const encodePath = (/** @type {string} */ value) =>
     value.split('/').map(encodeURIComponent).join('/');
+  const repoPath = `/repos/${encodePath(repo)}`;
 
   /**
    * @param {string} method
@@ -92,6 +93,14 @@ export function createClient({ fetch, apiUrl, token, repo }) {
       if (/** @type {any} */ (error)?.status === NOT_FOUND) return null;
       throw error;
     }
+  }
+
+  /** GitHub answers a PATCH on a ref that does not exist with 404 or with 422 and this message. */
+  function isMissingRef(/** @type {any} */ error) {
+    return (
+      error?.status === NOT_FOUND ||
+      (error?.status === UNPROCESSABLE && /does not exist/i.test(error.message))
+    );
   }
 
   /** @param {string | null} header */
@@ -194,6 +203,13 @@ export function createClient({ fetch, apiUrl, token, repo }) {
       return Buffer.from(answer.data.content, 'base64').toString('utf8');
     },
 
+    /** Reads only the first page, so a long history never reaches the page limit. */
+    async compareStatus(/** @type {string} */ base, /** @type {string} */ head) {
+      const range = `${encodeURIComponent(base)}...${encodeURIComponent(head)}`;
+      const answer = await send('GET', `/compare/${range}?per_page=1`);
+      return /** @type {string} */ (answer.data.status);
+    },
+
     /** @returns {Promise<{ status: string, titles: string[] }>} */
     async compareCommits(/** @type {string} */ base, /** @type {string} */ head) {
       const range = `${encodeURIComponent(base)}...${encodeURIComponent(head)}`;
@@ -224,8 +240,12 @@ export function createClient({ fetch, apiUrl, token, repo }) {
 
     /** Force-moves a branch to sha, creating it only when it does not exist. */
     async setBranch(/** @type {string} */ branch, /** @type {string} */ sha) {
-      const moved = await orNull(() => send('PATCH', `/git/refs/heads/${encodePath(branch)}`, { sha, force: true }));
-      if (moved) return;
+      try {
+        await send('PATCH', `/git/refs/heads/${encodePath(branch)}`, { sha, force: true });
+        return;
+      } catch (error) {
+        if (!isMissingRef(error)) throw error;
+      }
       await send('POST', '/git/refs', { ref: `refs/heads/${branch}`, sha });
     },
 

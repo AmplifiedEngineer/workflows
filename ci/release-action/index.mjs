@@ -43,7 +43,7 @@ const EVENT_ENCODING = "utf8";
  * @param {string} text
  * @returns {string}
  */
-export function escapeCommandData(text) {
+function escapeCommandData(text) {
   return text.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
 }
 

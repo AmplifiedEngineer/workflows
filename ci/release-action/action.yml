@@ -3,7 +3,7 @@ description: Verify, prepare or create a release from a pull request title or th
 
 inputs:
   mode:
-    description: What to do, verify or release.
+    description: What to do, verify, prepare or release.
     required: true
   token:
     description: Token used for the GitHub API calls.

@@ -17,8 +17,8 @@ import {
   versionOf,
 } from "./version.mjs";
 
-export const RELEASE_BRANCH = "release/next";
-export const FILE_MODE = "100644";
+const RELEASE_BRANCH = "release/next";
+const FILE_MODE = "100644";
 const BLOB_TYPE = "blob";
 const INFO = "info";
 const AUTO = "auto";

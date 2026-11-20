@@ -4,19 +4,16 @@
  * manifest file already holds it. Returns the outputs and log entries; it never prints.
  */
 
-import { agreedVersion, readVersions } from "./manifests.mjs";
+import { agreedVersion, describe, readVersions } from "./manifests.mjs";
 import {
+  BASE_VERSION,
   bumpFor,
   nextVersion,
-  parseVersion,
   pickLatestTag,
   tagFor,
   versionOf,
 } from "./version.mjs";
 
-const NO_TAG_BASE_VERSION = "0.0.0";
-const NO_VERSION = "no version";
-const INVALID_VERSION = "invalid";
 const INFO = "info";
 const LINE_SEPARATOR = "\n";
 
@@ -32,7 +29,7 @@ const LINE_SEPARATOR = "\n";
  * @returns {Promise<{ outputs: { version: string, tag: string }, log: LogEntry[] }>}
  */
 export async function verify({ client, workspace, files, title }) {
-  if (!title) throw new Error("pull request title missing");
+  if (!title?.trim()) throw new Error("pull request title missing");
   const refs = await client.listTagRefs();
   const latestTag = pickLatestTag(refs.map(({ ref }) => ref));
   const entries = readVersions(workspace, files);
@@ -49,7 +46,7 @@ export async function verify({ client, workspace, files, title }) {
  */
 function expectedVersion({ latestTag, title, entries }) {
   if (latestTag === null && entries.length > 0) return firstVersion(entries);
-  const current = latestTag === null ? NO_TAG_BASE_VERSION : versionOf(latestTag);
+  const current = latestTag === null ? BASE_VERSION : versionOf(latestTag);
   return nextVersion(current, bumpFor(title, current));
 }
 
@@ -72,13 +69,4 @@ function requireFilesAt(entries, expected) {
     .filter(({ version }) => version !== expected)
     .map(({ file, version }) => `${file} has ${describe(version)}, set it to ${expected}`);
   if (lines.length > 0) throw new Error(lines.join(LINE_SEPARATOR));
-}
-
-/**
- * A manifest value is shown only when it is a strict version, so it cannot carry log commands.
- * @param {string | null} version
- */
-function describe(version) {
-  if (version === null) return NO_VERSION;
-  return parseVersion(version) ? version : INVALID_VERSION;
 }

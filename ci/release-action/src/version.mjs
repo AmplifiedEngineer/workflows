@@ -9,13 +9,14 @@ const SEMVER_REGEX = new RegExp(`^${SEMVER_SOURCE}$`);
 const TAG_REGEX = new RegExp(`^v${SEMVER_SOURCE}$`);
 const BREAKING_REGEX = /^[a-z]+(\([^)]*\))?!:/;
 const FEATURE_REGEX = /^feat(\([^)]*\))?!?:/;
-const TAG_REF_PREFIX = "refs/tags/";
+export const TAG_REF_PREFIX = "refs/tags/";
+export const BASE_VERSION = "0.0.0";
 const TAG_PREFIX = "v";
 const NEWLINE = "\n";
 
-export const MAJOR = "major";
-export const MINOR = "minor";
-export const PATCH = "patch";
+const MAJOR = "major";
+const MINOR = "minor";
+const PATCH = "patch";
 
 /** @typedef {"major" | "minor" | "patch"} Bump */
 /** @typedef {{ major: number, minor: number, patch: number }} Version */
@@ -32,7 +33,7 @@ export function parseVersion(text) {
 }
 
 /** @param {Version} version */
-export function formatVersion({ major, minor, patch }) {
+function formatVersion({ major, minor, patch }) {
   return `${major}.${minor}.${patch}`;
 }
 
@@ -68,7 +69,7 @@ export function compareVersions(a, b) {
  */
 export function bumpFor(title, current) {
   const { major } = requireVersion(current);
-  const firstLine = title.split(NEWLINE)[0];
+  const firstLine = title.trim().split(NEWLINE)[0];
   const breaking = BREAKING_REGEX.test(firstLine);
   if (breaking && major > 0) return MAJOR;
   if (breaking || FEATURE_REGEX.test(firstLine)) return MINOR;

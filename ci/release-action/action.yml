@@ -1,0 +1,33 @@
+name: Release
+description: Verify, prepare or create a release from a pull request title or the commits on the default branch.
+
+inputs:
+  mode:
+    description: What to do, verify, prepare or release.
+    required: true
+  token:
+    description: Token used for the GitHub API calls.
+    default: ${{ github.token }}
+  files:
+    description: JSON files with a top-level version, one workspace-relative path per line.
+    default: ""
+  bump:
+    description: Version bump, auto, patch, minor or major.
+    default: auto
+  dry-run:
+    description: Set to true to report what would change without writing, false or true only.
+    default: "false"
+
+outputs:
+  version:
+    description: The version without a leading v.
+  tag:
+    description: The tag, the version with a leading v.
+  released:
+    description: Whether this run created the tag or the release, true or false.
+  pull-request:
+    description: The URL of the release pull request.
+
+runs:
+  using: node24
+  main: index.mjs

@@ -1,0 +1,89 @@
+name: release-continuous
+
+on:
+  workflow_call:
+    inputs:
+      files:
+        description: JSON files with a top-level version, one workspace-relative path per line.
+        type: string
+        default: ""
+    outputs:
+      version:
+        description: The version without a leading v.
+        value: ${{ jobs.release.outputs.version }}
+      tag:
+        description: The tag, the version with a leading v.
+        value: ${{ jobs.release.outputs.tag }}
+      released:
+        description: Whether this run created the tag or the release.
+        value: ${{ jobs.release.outputs.released }}
+
+permissions: {}
+
+jobs:
+  verify:
+    name: verify
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.base.ref == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    concurrency:
+      group: verify-${{ github.repository }}-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Verify the version
+        uses: $/ci/release-action
+        with:
+          mode: verify
+          files: ${{ inputs.files }}
+
+  release:
+    name: release
+    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # tags and creates the release
+    concurrency:
+      group: release-${{ github.repository }}
+      cancel-in-progress: false
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      released: ${{ steps.release.outputs.released }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Release
+        id: release
+        uses: $/ci/release-action
+        with:
+          mode: release
+          files: ${{ inputs.files }}

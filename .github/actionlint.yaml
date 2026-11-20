@@ -1,0 +1,5 @@
+paths:
+  .github/workflows/**/*.yml:
+    # actionlint 1.7.12 reports the `$/` action syntax as an invalid format.
+    ignore:
+      - 'specifying action "\$/.+" in invalid format because ref is missing'

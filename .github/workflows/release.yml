@@ -1,0 +1,16 @@
+name: release
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  release:
+    name: release
+    permissions:
+      contents: write # the called release job creates the tag and release
+    uses: $/.github/workflows/release-continuous.yml

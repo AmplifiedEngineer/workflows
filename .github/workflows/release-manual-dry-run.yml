@@ -1,0 +1,16 @@
+name: release-manual-dry-run
+
+on: workflow_dispatch
+
+permissions: {}
+
+jobs:
+  dry-run:
+    name: dry-run
+    permissions:
+      contents: write # GitHub checks the called jobs' permissions against this grant, skipped jobs included
+    uses: $/.github/workflows/release-manual.yml
+    with:
+      files: ci/release-action/test/fixtures/dry-run/manifest.json
+      bump: minor
+      dry-run: true

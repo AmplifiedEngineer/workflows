@@ -191,7 +191,7 @@ The workflows call the action for you. These are its inputs and outputs, in case
 
 ## Keep the pin current
 
-Add this to `.github/dependabot.yml`. Dependabot updates the SHA and the version comment together.
+Add this to `.github/dependabot.yml`. Dependabot updates the SHA and the version comment together. The cooldown makes it wait 7 days after a release before it proposes the update.
 
 ```yaml
 version: 2
@@ -200,6 +200,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
 ```
 
 ## How this repo checks and releases itself

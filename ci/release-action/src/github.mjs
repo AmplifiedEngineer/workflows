@@ -17,6 +17,7 @@ const REFS_PATH = "/git/refs";
 const PER_PAGE = 100;
 const MAX_TAG_PAGES = 10;
 const MAX_COMPARE_PAGES = 10;
+const MAX_RELEASE_PAGES = 10;
 
 const NOT_FOUND = 404;
 const UNPROCESSABLE = 422;
@@ -180,9 +181,13 @@ export function createClient({ fetch, apiUrl, token, repo }) {
       await send("POST", REFS_PATH, { ref: `refs/tags/${tag}`, sha });
     },
 
+    /** Returns the release for a tag, drafts included, or null. */
     async getRelease(/** @type {string} */ tag) {
       const answer = await orNull(() => send("GET", `/releases/tags/${encodePath(tag)}`));
-      return answer && answer.data;
+      if (answer) return answer.data;
+      // The tag endpoint hides draft releases, so look for one in the full list.
+      const pages = await paginate(`/releases?per_page=${PER_PAGE}`, "releases", MAX_RELEASE_PAGES);
+      return pages.flat().find((/** @type {any} */ item) => item.tag_name === tag) ?? null;
     },
 
     async createRelease(/** @type {{ tag: string, sha: string }} */ { tag, sha }) {

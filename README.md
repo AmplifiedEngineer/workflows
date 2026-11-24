@@ -78,6 +78,17 @@ jobs:
         .claude-plugin/plugin.json
 ```
 
+To release only when some files change, add `paths`. It lists repo-relative path prefixes, one per line, such as `skills/`. A file matches when its path starts with a prefix, and a rename counts for both its old and new path. A prefix must not start with `/` or contain `..`. Empty means every change is release-worthy. On a pull request, `verify` reads the changed files and, when none match, passes with a notice and needs no version. GitHub lists at most 3000 files for a pull request, so a longer list fails rather than guess. On a push, `release` reads the pushed commit and, when no file matches, creates no tag and no release (it still repairs a missing release for the latest tag). GitHub lists at most 300 files for a commit, so a commit with 300 files is treated as a match.
+
+```yaml
+    with:
+      files: |
+        package.json
+      paths: |
+        skills/
+        package.json
+```
+
 Rules for the caller:
 
 - The job must be named `release`. The required check name is built from it.
@@ -137,7 +148,7 @@ jobs:
 
 Inside one organisation you can write `secrets: inherit` instead of naming the two secrets.
 
-The caller passes these inputs: `files` (required, at least one file), `bump` (`auto`, `patch`, `minor` or `major`, default `auto`) and `dry-run` (default `false`). Use `files` to name the manifests the release pull request updates.
+The caller passes these inputs: `files` (required, at least one file), `bump` (`auto`, `patch`, `minor` or `major`, default `auto`) and `dry-run` (default `false`). Use `files` to name the manifests the release pull request updates. It also accepts the optional `paths` input described in the continuous type, which gates only the `release` job on a push. `prepare` ignores it.
 
 Set it up once:
 
@@ -166,6 +177,7 @@ The workflows call the action for you. These are its inputs and outputs, in case
 | `mode` | none, required | `verify`, `prepare` or `release` |
 | `token` | `github.token` | Token for the GitHub API calls |
 | `files` | empty | JSON files with a top-level `version`, one path per line |
+| `paths` | empty | Path prefixes that make a change release-worthy, one per line. Empty means every change. Used by `verify` and `release`, ignored by `prepare` |
 | `bump` | `auto` | `auto`, `patch`, `minor` or `major` (used by `prepare`) |
 | `dry-run` | `false` | `true` or `false` only. Any other value fails |
 

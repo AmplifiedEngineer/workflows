@@ -5,6 +5,7 @@
  */
 
 import { agreedVersion, describe, readVersions } from "./manifests.mjs";
+import { matchesAny } from "./paths.mjs";
 import {
   BASE_VERSION,
   bumpFor,
@@ -15,20 +16,34 @@ import {
 } from "./version.mjs";
 
 const INFO = "info";
+const NOTICE = "notice";
+const NO_VERSION = "";
 const LINE_SEPARATOR = "\n";
 
-/** @typedef {{ level: "info" | "notice", text: string }} LogEntry */
+/** @typedef {import("./github.mjs").LogEntry} LogEntry */
 
 /**
  * @param {{
- *   client: { listTagRefs(): Promise<{ ref: string }[]> },
+ *   client: {
+ *     listTagRefs(): Promise<{ ref: string }[]>,
+ *     listPullFiles(number: number): Promise<string[]>,
+ *   },
  *   workspace: string,
  *   files: string[],
  *   title: string | undefined,
- * }} options
+ *   paths: string[],
+ *   pullNumber: number | undefined,
+ * }} options `paths` is the parsed list; an empty list means every change needs a version.
  * @returns {Promise<{ outputs: { version: string, tag: string }, log: LogEntry[] }>}
  */
-export async function verify({ client, workspace, files, title }) {
+export async function verify({ client, workspace, files, title, paths, pullNumber }) {
+  if (paths.length > 0) {
+    if (pullNumber === undefined) throw new Error("event payload has no pull_request.number");
+    if (!matchesAny(await client.listPullFiles(pullNumber), paths)) {
+      const text = "no release-worthy files changed, no version needed";
+      return { outputs: { version: NO_VERSION, tag: NO_VERSION }, log: [{ level: NOTICE, text }] };
+    }
+  }
   if (!title?.trim()) throw new Error("pull request title missing");
   const refs = await client.listTagRefs();
   const latestTag = pickLatestTag(refs.map(({ ref }) => ref));

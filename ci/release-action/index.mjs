@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 
 import { createClient } from "./src/github.mjs";
 import { parseFiles } from "./src/manifests.mjs";
+import { parsePaths } from "./src/paths.mjs";
 import { prepare } from "./src/prepare.mjs";
 import { release } from "./src/release.mjs";
 import { verify } from "./src/verify.mjs";
@@ -97,6 +98,7 @@ function readInputs(env) {
     bump,
     dryRun: dryRun === TRUE,
     files: env.INPUT_FILES ?? "",
+    paths: parsePaths(env.INPUT_PATHS ?? ""),
     token: requireEnv(env, "INPUT_TOKEN", "token"),
     repository: requireEnv(env, "GITHUB_REPOSITORY"),
     sha: requireEnv(env, "GITHUB_SHA"),
@@ -142,7 +144,14 @@ function readEvent(path) {
 function runMode({ inputs, event, client, files }) {
   const { workspace, sha, mode } = inputs;
   if (mode === MODE_VERIFY) {
-    return verify({ client, workspace, files, title: event?.pull_request?.title });
+    return verify({
+      client,
+      workspace,
+      files,
+      title: event?.pull_request?.title,
+      paths: inputs.paths,
+      pullNumber: event?.pull_request?.number,
+    });
   }
   if (mode === MODE_PREPARE) {
     const defaultBranch = event?.repository?.default_branch;
@@ -150,7 +159,7 @@ function runMode({ inputs, event, client, files }) {
     const owner = inputs.repository.split(REPOSITORY_SEPARATOR)[0];
     return prepare({ client, files, bump: inputs.bump, dryRun: inputs.dryRun, defaultBranch, owner });
   }
-  return release({ client, workspace, files, sha });
+  return release({ client, workspace, files, sha, paths: inputs.paths });
 }
 
 const isEntryScript =

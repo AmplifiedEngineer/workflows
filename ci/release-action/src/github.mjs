@@ -17,6 +17,9 @@ const REFS_PATH = "/git/refs";
 const PER_PAGE = 100;
 const MAX_TAG_PAGES = 10;
 const MAX_COMPARE_PAGES = 10;
+const PULL_FILES_LIMIT = 3000;
+const MAX_PULL_FILE_PAGES = PULL_FILES_LIMIT / PER_PAGE;
+const COMMIT_FILES_LIMIT = 300;
 
 const NOT_FOUND = 404;
 const UNPROCESSABLE = 422;
@@ -146,6 +149,10 @@ export function createClient({ fetch, apiUrl, token, repo }) {
 
   const firstLine = (/** @type {string} */ message) => message.split("\n")[0].replace(/\r$/, "");
 
+  /** Lists the new path and, for a rename, the old one, since moving a file out of a prefix is a change too. */
+  const toPaths = (/** @type {any[]} */ files) =>
+    files.flatMap((file) => (file.previous_filename ? [file.filename, file.previous_filename] : [file.filename]));
+
   /** @returns {TagRef} */
   const toTagRef = (/** @type {any} */ item) => ({
     ref: item.ref,
@@ -234,6 +241,30 @@ export function createClient({ fetch, apiUrl, token, repo }) {
     async getCommitTitle(/** @type {string} */ sha) {
       const answer = await send("GET", `/commits/${encodeURIComponent(sha)}`);
       return firstLine(answer.data.commit.message);
+    },
+
+    /**
+     * GitHub lists at most 3000 files for a pull request, so a list that long may be cut short.
+     * @returns {Promise<string[]>}
+     */
+    async listPullFiles(/** @type {number} */ number) {
+      const endpoint = `pulls/${number}/files`;
+      const pages = await paginate(`/${endpoint}?per_page=${PER_PAGE}`, endpoint, MAX_PULL_FILE_PAGES);
+      const files = pages.flat();
+      if (files.length >= PULL_FILES_LIMIT) {
+        throw new Error(`pull request ${number} lists ${PULL_FILES_LIMIT} files, so the list may be cut short; refusing to guess`);
+      }
+      return toPaths(files);
+    },
+
+    /**
+     * GitHub lists at most 300 files for a commit, so `capped` tells the caller the list may be cut short.
+     * @returns {Promise<{ files: string[], capped: boolean }>}
+     */
+    async getCommitFiles(/** @type {string} */ sha) {
+      const answer = await send("GET", `/commits/${encodeURIComponent(sha)}`);
+      const files = answer.data.files ?? [];
+      return { files: toPaths(files), capped: files.length >= COMMIT_FILES_LIMIT };
     },
 
     async createBlob(/** @type {string} */ text) {

@@ -7,6 +7,7 @@
  */
 
 import { agreedVersion, readVersions } from "./manifests.mjs";
+import { matchesAny } from "./paths.mjs";
 import {
   BASE_VERSION,
   TAG_REF_PREFIX,
@@ -24,6 +25,7 @@ const STATUS_IDENTICAL = "identical";
 const STATUS_DIVERGED = "diverged";
 const TRUE = "true";
 const FALSE = "false";
+const NO_VERSION = "";
 
 /**
  * @typedef {import("./github.mjs").LogEntry} LogEntry
@@ -36,10 +38,12 @@ const FALSE = "false";
  *   workspace: string,
  *   files: string[],
  *   sha: string,
+ *   paths: string[],
  * }} options `files` is the parsed list; an empty list means the version comes from the commits.
+ * `paths` is the parsed list; an empty list means every commit is released.
  * @returns {Promise<ReleaseResult>}
  */
-export async function release({ client, workspace, files, sha }) {
+export async function release({ client, workspace, files, sha, paths }) {
   /** @type {LogEntry[]} */
   const log = [];
   const manifestVersion = files.length > 0 ? agreedVersion(readVersions(workspace, files)) : null;
@@ -85,10 +89,28 @@ export async function release({ client, workspace, files, sha }) {
     return { outputs: { version: versionOf(tag), tag, released: released ? TRUE : FALSE }, log };
   }
 
+  /** @returns {Promise<boolean>} */
+  async function touchesReleasePaths() {
+    if (paths.length === 0) return true;
+    const { files: changed, capped } = await client.getCommitFiles(sha);
+    if (capped) {
+      log.push({ level: NOTICE, text: `${sha} lists the most files GitHub shows, so the rest are hidden; treating it as release-worthy` });
+      return true;
+    }
+    return matchesAny(changed, paths);
+  }
+
   /** @param {string} tag */
   async function createTagAndRelease(tag) {
     await client.createTagRef(tag, sha);
     await client.createRelease({ tag, sha });
+  }
+
+  if (!(await touchesReleasePaths())) {
+    const text = `no release-worthy files changed in ${sha}, nothing to release`;
+    if (latestTag) return finish(latestTag, repaired, [{ level: NOTICE, text }]);
+    log.push({ level: NOTICE, text });
+    return { outputs: { version: NO_VERSION, tag: NO_VERSION, released: FALSE }, log };
   }
 
   if (manifestVersion !== null) {

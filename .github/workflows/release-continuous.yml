@@ -7,6 +7,10 @@ on:
         description: JSON files with a top-level version, one workspace-relative path per line.
         type: string
         default: ""
+      paths:
+        description: Repo-relative path prefixes that make a change release-worthy, one per line. Empty means every change.
+        type: string
+        default: ""
     outputs:
       version:
         description: The version without a leading v.
@@ -52,6 +56,7 @@ jobs:
         with:
           mode: verify
           files: ${{ inputs.files }}
+          paths: ${{ inputs.paths }}
 
   release:
     name: release
@@ -87,3 +92,4 @@ jobs:
         with:
           mode: release
           files: ${{ inputs.files }}
+          paths: ${{ inputs.paths }}

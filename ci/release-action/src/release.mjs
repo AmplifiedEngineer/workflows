@@ -26,7 +26,7 @@ const TRUE = "true";
 const FALSE = "false";
 
 /**
- * @typedef {{ level: "info" | "notice", text: string }} LogEntry
+ * @typedef {import("./github.mjs").LogEntry} LogEntry
  * @typedef {{ outputs: { version: string, tag: string, released: string }, log: LogEntry[] }} ReleaseResult
  */
 

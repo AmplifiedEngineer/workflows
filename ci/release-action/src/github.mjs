@@ -26,6 +26,7 @@ const ANNOTATED_TAG = "tag";
 /**
  * @typedef {{ ref: string, sha: string, type: string }} TagRef
  * @typedef {{ number: number, url: string }} Pull
+ * @typedef {{ level: "info" | "notice", text: string }} LogEntry
  * @typedef {{ path: string, mode: string, type: string, sha: string }} TreeEntry
  * @typedef {{ status: number, headers: { get(name: string): string | null }, data: any }} Answer
  */

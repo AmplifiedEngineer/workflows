@@ -26,7 +26,7 @@ const NO_PULL_REQUEST = "";
 const FILE_SEPARATOR = ", ";
 
 /**
- * @typedef {{ level: "info" | "notice", text: string }} LogEntry
+ * @typedef {import("./github.mjs").LogEntry} LogEntry
  * @typedef {{
  *   outputs: { version: string, tag: string, "pull-request": string },
  *   log: LogEntry[],

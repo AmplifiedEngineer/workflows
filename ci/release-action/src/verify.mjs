@@ -17,7 +17,7 @@ import {
 const INFO = "info";
 const LINE_SEPARATOR = "\n";
 
-/** @typedef {{ level: "info" | "notice", text: string }} LogEntry */
+/** @typedef {import("./github.mjs").LogEntry} LogEntry */
 
 /**
  * @param {{
